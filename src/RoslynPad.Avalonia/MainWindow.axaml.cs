@@ -100,8 +100,6 @@ internal partial class MainWindow : Window
 
     private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        Trace.TraceInformation($"OnPropertyChanged {e.Property}");
-
         if ((e.Property == Window.BoundsProperty)
             && WindowState == WindowState.Normal)
         {
