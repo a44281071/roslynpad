@@ -79,8 +79,17 @@ public partial class CodeTextEditor : TextEditor
         {
             e.Handled = true;
             var mode = e.HasModifiers(ModifierKeys.Shift)
-                ? TriggerMode.SignatureHelp
-                : TriggerMode.Completion;
+                ? TriggerMode.SignatureHelp  // Ctrl + Space
+                : TriggerMode.Completion;    // Ctrl + Shift + Space
+            _ = ShowCompletion(mode);
+        }
+        else if (e.Key is Key.J && e.HasModifiers(ModifierKeys.Control))
+        {
+            // Ctrl + J, (like visual studio)
+            e.Handled = true;
+            var mode = e.HasModifiers(ModifierKeys.Shift)
+                ? TriggerMode.SignatureHelp  // Ctrl + J
+                : TriggerMode.Completion;    // Ctrl + Shift + J
             _ = ShowCompletion(mode);
         }
     }

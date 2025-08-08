@@ -60,6 +60,8 @@ public sealed class RoslynCodeEditorCompletionProvider : ICodeEditorCompletionPr
 
         if (useSignatureHelp || triggerChar != null)
         {
+            System.Diagnostics.Trace.TraceInformation($"useSignatureHelp && char: {triggerChar}");
+
             var signatureHelpProvider = _roslynHost.GetService<ISignatureHelpProvider>();
             var isSignatureHelp = useSignatureHelp || signatureHelpProvider.IsTriggerCharacter(triggerChar.GetValueOrDefault());
             if (isSignatureHelp)
@@ -75,6 +77,7 @@ public sealed class RoslynCodeEditorCompletionProvider : ICodeEditorCompletionPr
                 if (signatureHelp != null)
                 {
                     overloadProvider = new RoslynOverloadProvider(signatureHelp);
+                    System.Diagnostics.Trace.TraceInformation($"overloadProvider: {signatureHelp}");
                 }
             }
         }

@@ -8,7 +8,7 @@
              xmlns:converters="clr-namespace:RoslynPad.Converters"
              x:DataType="ui:OpenDocumentViewModel">
   <Grid>
-    <TreeView ItemsSource="{Binding Results}">
+    <TreeView ItemsSource="{Binding Results}" FontSize="12">
       <TreeView.DataTemplates>
         <TreeDataTemplate x:DataType="build:ResultObject"
                           ItemsSource="{Binding Children}">

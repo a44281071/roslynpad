@@ -1,11 +1,17 @@
 ﻿using System.Collections.Specialized;
 using System.Composition.Hosting;
+using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Avalonia.VisualTree;
+using Dock.Avalonia.Controls;
 using Dock.Model.Avalonia.Controls;
 using Dock.Model.Core.Events;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,20 +21,13 @@ using RoslynPad.UI;
 
 namespace RoslynPad;
 
-partial class MainWindow : Window
+internal partial class MainWindow : Window
 {
-    public const string DialogHostIdentifier = "Main";
-
-    private readonly MainViewModel _viewModel;
-    private ThemeDictionary? _themeDictionary;
-
-    public MainViewModel ViewModel => _viewModel;
-
     public MainWindow()
     {
         var services = new ServiceCollection();
         services.AddLogging(
-#if DEBUG    
+#if DEBUG
         l => l.AddDebug()
 #endif
         );
@@ -51,6 +50,112 @@ partial class MainWindow : Window
         if (_viewModel.Settings.WindowFontSize.HasValue)
         {
             FontSize = _viewModel.Settings.WindowFontSize.Value;
+        }
+    }
+
+    public const string DialogHostIdentifier = "Main";
+
+    private readonly MainViewModel _viewModel;
+    private ThemeDictionary? _themeDictionary;
+
+    public MainViewModel ViewModel => _viewModel;
+
+    public Rect RestoreBounds { get; set; }
+
+    protected override void OnTemplateChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        base.OnTemplateChanged(e);
+
+        LoadWindowLayout();
+    }
+
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+
+        RestoreBounds = new Rect(new Point(Position.X, Position.Y), Bounds.Size);
+        PropertyChanged += OnPropertyChanged;
+        PositionChanged += MainWindow_PositionChanged;
+
+        #region DoubleClick_NewDocument
+
+        // find control for the documents pane, add
+        var tabStrip = Dock.GetVisualDescendants()
+            .OfType<DocumentTabStrip>()
+            .FirstOrDefault();
+
+        if (tabStrip is not null)
+        {
+            // listen for double click on the tab strip blank space.
+            tabStrip.AddHandler(PointerPressedEvent, OnTabStripPointerPressed, RoutingStrategies.Tunnel);
+        }
+
+        #endregion DoubleClick_NewDocument
+    }
+
+    private void MainWindow_PositionChanged(object? sender, PixelPointEventArgs e)
+    {
+        RestoreBounds = new Rect(new Point(e.Point.X, e.Point.Y), Bounds.Size);
+    }
+
+    private void OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        Trace.TraceInformation($"OnPropertyChanged {e.Property}");
+
+        if ((e.Property == Window.BoundsProperty)
+            && WindowState == WindowState.Normal)
+        {
+            Rect rect = e.GetNewValue<Rect>();
+            RestoreBounds = new Rect(new Point(Position.X, Position.Y), rect.Size);
+        }
+    }
+
+    protected override void OnClosing(Avalonia.Controls.WindowClosingEventArgs e)
+    {
+        SaveWindowLayout();
+    }
+
+    private void SaveWindowLayout()
+    {
+        try
+        {
+            _viewModel.Settings.WindowBounds = RestoreBounds.ToString();
+            _viewModel.Settings.WindowState = WindowState.ToString();
+        }
+        catch (Exception)
+        {
+            // prop notify save to file.
+        }
+    }
+
+    private void LoadWindowLayout()
+    {
+        if (ViewModel is not { Settings.WindowBounds: { Length: > 0 } boundsString })
+            return;
+
+        try
+        {
+            var bounds = Rect.Parse(boundsString);
+            if (bounds != default)
+            {
+                Position = new PixelPoint((int)bounds.X, (int)bounds.Y);
+                Width = bounds.Width;
+                Height = bounds.Height;
+            }
+        }
+        catch (FormatException)
+        {
+        }
+    }
+
+    private void OnTabStripPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e is { ClickCount: 2, Source: DockPanel })  // tab strip blank space is parent <DockPanel>
+        {
+            e.Handled = true;
+
+            // new document
+            ViewModel.NewDocumentCommand.Execute(Microsoft.CodeAnalysis.SourceCodeKind.Regular);
         }
     }
 
@@ -110,7 +215,6 @@ partial class MainWindow : Window
                 {
                     factory.RemoveDockable(dockable, collapse: false);
                 }
-
             }
         }
         if (e.NewItems is not null)
